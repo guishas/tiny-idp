@@ -18,8 +18,9 @@
 //        request_id = header X-Request-Id da requisição (se vier), senão gerado; também devolvido no header X-Request-Id
 //   Audit é APPEND-ONLY: não existe PUT/PATCH/DELETE em /audit
 //   POST /webauthn/register/options (bônus) -> 200 {challenge, rp:{id,name}, user:{id,name}} com challenge novo a cada chamada
-import assert from 'node:assert/strict'
+
 import { test } from 'bun:test'
+import assert from 'node:assert/strict'
 import { bonus, type Json, makeUser, PASSWORD, relogin, rnd, type TestUser, totp } from './helpers'
 
 const BIG = 150000 // >= 100000 exige step-up

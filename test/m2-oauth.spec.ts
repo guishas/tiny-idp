@@ -21,16 +21,17 @@
 //        - token sem escopo "profile" -> 403 insufficient_scope
 //
 // Fora do teste (confira à mão): o code expira em poucos minutos (ideal: 60 s) e é de uso único.
-import assert from 'node:assert/strict'
+
 import { test } from 'bun:test'
+import assert from 'node:assert/strict'
 import {
-  CLIENT_ID,
-  REDIRECT_URI,
   authorize,
   bonus,
+  CLIENT_ID,
   getTokens,
   makeUser,
   pkce,
+  REDIRECT_URI,
   Session,
   tokenRequest,
 } from './helpers'

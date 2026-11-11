@@ -24,8 +24,9 @@
 //
 // Regra do can(): NEGAR POR PADRÃO. Permissão vem do papel OU de uma delegação ativa (não expirada, não revogada)
 // cujo delegante AINDA possui aquela permissão pelo papel dele. Delegação não encadeia (quem recebeu não delega).
-import assert from 'node:assert/strict'
+
 import { test } from 'bun:test'
+import assert from 'node:assert/strict'
 import { bonus, type Json, makeUser, type Res, rnd, sleep } from './helpers'
 
 /** Cria uma org com um dono e devolve utilitários. */

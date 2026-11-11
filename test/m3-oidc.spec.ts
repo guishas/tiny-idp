@@ -12,20 +12,21 @@
 //   GET /userinfo (Bearer) -> 200 {sub, email} (email só com escopo "email"); exige escopo "openid"
 //
 // Sem o escopo "openid" NÃO deve haver id_token.
-import assert from 'node:assert/strict'
+
 import { test } from 'bun:test'
+import assert from 'node:assert/strict'
 import {
   BASE,
-  CLIENT_ID,
-  Session,
   bonus,
+  CLIENT_ID,
   decodeJwt,
   getTokens,
+  type Json,
   makeUser,
   relogin,
   rnd,
+  Session,
   verifyJwtSignature,
-  type Json,
 } from './helpers'
 
 async function discovery() {

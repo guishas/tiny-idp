@@ -9,9 +9,10 @@
 // Itens que não dá para testar de fora (confira à mão):
 //   [ ] a senha é guardada com hash lento e com salt (argon2id, scrypt ou bcrypt), nunca em texto
 //   [ ] o cookie ganha o atributo Secure quando NODE_ENV=production
-import assert from 'node:assert/strict'
+
 import { test } from 'bun:test'
-import { PASSWORD, Session, bonus, rnd } from './helpers'
+import assert from 'node:assert/strict'
+import { bonus, PASSWORD, rnd, Session } from './helpers'
 
 const newEmail = () => `m1-${rnd()}@example.test`
 

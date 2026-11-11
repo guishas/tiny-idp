@@ -7,11 +7,12 @@
 //   - seção "Components" (ou "Componentes")
 //   - seção "Threat model" (ou "Modelo de ameaças") com uma tabela de pelo menos 6 ameaças e 3 colunas
 //   - seção "Decisions and trade-offs" (ou "Decisões e trade-offs") com pelo menos 3 itens
+
+import { test } from 'bun:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const root =
   process.env.REPO_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')

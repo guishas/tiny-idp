@@ -5,11 +5,12 @@
 //   - a seção "Security notes" foi escrita por você: pelo menos 3 itens e nenhum marcador TODO(m7)
 //   - existe .github/workflows/ci.yml rodando `bun test`
 //   - package.json mantém os scripts "dev", "start" e "test"
+
+import { test } from 'bun:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { test } from 'bun:test'
 
 const root =
   process.env.REPO_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
