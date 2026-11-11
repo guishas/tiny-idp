@@ -1,0 +1,36 @@
+{
+  "name": "tiny-idp",
+  "description": "A small identity provider built from scratch to learn authentication and authorization from the inside.",
+  "module": "src/server.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch run src/server.ts",
+    "start": "bun run src/server.ts",
+    "console": "bun run console/server.ts",
+    "test": "bun test",
+    "test:m1": "bun test test/m1-auth.spec.ts",
+    "test:m2": "bun test test/m2-oauth.spec.ts",
+    "test:m3": "bun test test/m3-oidc.spec.ts",
+    "test:m4": "bun test test/m4-authz.spec.ts",
+    "test:m5": "bun test test/m5-mfa-audit.spec.ts",
+    "test:m6": "bun test test/m6-docs.spec.ts",
+    "test:m7": "bun test test/m7-repo.spec.ts",
+    "test:api": "bun test test/m1-auth.spec.ts test/m2-oauth.spec.ts test/m3-oidc.spec.ts test/m4-authz.spec.ts test/m5-mfa-audit.spec.ts",
+    "test:bonus": "BONUS=1 bun test",
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "bunx biome check .",
+    "lint:fix": "bunx biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.4",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "fastify": "^5.7.4",
+    "zod": "^4.3.6"
+  }
+}

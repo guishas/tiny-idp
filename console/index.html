@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tiny-idp console</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --panel2: #1e242c; --line: #2a323c; --text: #e6e9ee;
+    --muted: #8d98a7; --accent: #7cc4ff; --ok: #5fd08a; --warn: #f0b95a; --bad: #ff7a7a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; }
+  header { display: flex; gap: 16px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .02em; }
+  header .grow { flex: 1; }
+  .chip { font: 12px var(--mono); padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+  .chip.ok { color: var(--ok); border-color: #2f5f43; } .chip.bad { color: var(--bad); border-color: #6b3434; }
+  .chip.warn { color: var(--warn); border-color: #6b5527; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 40%); min-height: calc(100vh - 50px); }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  nav { display: flex; gap: 4px; padding: 12px 18px 0; flex-wrap: wrap; }
+  nav button { background: none; border: 1px solid transparent; border-bottom: 2px solid transparent; color: var(--muted); padding: 7px 12px; cursor: pointer; font: inherit; border-radius: 6px 6px 0 0; }
+  nav button.on { color: var(--text); border-bottom-color: var(--accent); background: var(--panel); }
+  #panel { padding: 16px 18px 40px; }
+  #log { border-left: 1px solid var(--line); background: var(--panel); padding: 12px 14px; overflow: auto; max-height: calc(100vh - 50px); position: sticky; top: 0; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 22px 0 8px; }
+  h2:first-child { margin-top: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; overflow-x: auto; }
+  .card.result pre { max-height: 240px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+  label { color: var(--muted); font-size: 12px; }
+  input, select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 13px var(--mono); min-width: 0; }
+  input[type=checkbox] { accent-color: var(--accent); }
+  button.act { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 11px; cursor: pointer; font: inherit; }
+  button.act:hover { border-color: var(--accent); }
+  button.act.primary { background: #1d3b55; border-color: #2d5d86; }
+  button.act.attack { border-color: #6b3434; color: var(--bad); }
+  pre, code, .mono { font-family: var(--mono); font-size: 12px; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; overflow: auto; margin: 6px 0; white-space: pre-wrap; word-break: break-all; }
+  .muted { color: var(--muted); } .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+  table { border-collapse: collapse; width: 100%; font: 12px var(--mono); }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 4px 0 8px; }
+  .totp { font: 600 26px var(--mono); letter-spacing: .12em; }
+  details.req { border-bottom: 1px solid var(--line); padding: 5px 0; }
+  details.req summary { cursor: pointer; font: 12px var(--mono); display: flex; gap: 8px; list-style: none; }
+  details.req summary::-webkit-details-marker { display: none; }
+  .st { min-width: 30px; } .st2 { color: var(--ok); } .st3 { color: var(--accent); } .st4 { color: var(--warn); } .st5 { color: var(--bad); }
+  .perm { display: inline-flex; gap: 4px; align-items: center; margin-right: 10px; font: 12px var(--mono); color: var(--text); }
+  .banner { border: 1px solid #6b5527; background: #2a2314; color: var(--warn); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>tiny-idp console</h1>
+  <span class="chip" id="idp">idp: …</span>
+  <span class="grow"></span>
+  <span class="chip" id="who">no session</span>
+  <select id="accounts" title="Accounts created from this console"></select>
+  <button class="act" id="switch">Switch user</button>
+</header>
+<main>
+  <section>
+    <nav id="tabs"></nav>
+    <div id="panel"></div>
+  </section>
+  <aside id="log"></aside>
+</main>
+
+<script>
+// ───────────── small helpers ─────────────
+const PERMS = ['invoice:create', 'invoice:read', 'invoice:read:own', 'invoice:approve',
+  'role:manage', 'member:manage', 'delegation:manage', 'audit:read']
+const CLIENT_ID = 'demo-client'
+const REDIRECT_URI = 'http://localhost:4000/callback'
+const enc = (s) => new TextEncoder().encode(s)
+const b64u = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const b64uDecode = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
+const random = (n) => b64u(crypto.getRandomValues(new Uint8Array(n)))
+const short = (s, n = 10) => (s && s.length > n + 3 ? `${s.slice(0, n)}…` : s)
+const pretty = (v) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2))
+
+/** el('div', {class: 'x', onclick: fn}, child, 'text', ...) — always textContent, never innerHTML. */
+function el(tag, props = {}, ...kids) {
+  const node = document.createElement(tag)
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k.startsWith('on')) node.addEventListener(k.slice(2), v)
+    else if (k === 'class') node.className = v
+    else if (v !== false && v != null) node.setAttribute(k, v === true ? '' : v)
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) node.append(kid.nodeType ? kid : String(kid))
+  return node
+}
+const btn = (label, onclick, cls = '') => el('button', { class: `act ${cls}`, onclick }, label)
+const input = (id, props = {}) => el('input', { id, ...props })
+const val = (id) => document.getElementById(id)?.value ?? ''
+
+// ───────────── state ─────────────
+// Persistent (localStorage): accounts and orgs created from this console. Dev-only convenience:
+// test passwords and TOTP secrets are kept in the browser so you can switch users with one click.
+const saved = JSON.parse(localStorage.getItem('tiny-idp-console') || '{}')
+const S = { accounts: [], orgs: [], orgId: null, totp: {}, ...saved }
+const persist = () => localStorage.setItem('tiny-idp-console', JSON.stringify(S))
+// Volatile (sessionStorage): the OAuth flow in progress and its tokens.
+const V = JSON.parse(sessionStorage.getItem('tiny-idp-flow') || '{}')
+const keep = () => sessionStorage.setItem('tiny-idp-flow', JSON.stringify(V))
+
+let cfg = { idp: 'http://localhost:3000' }
+let me = null
+let tab = 'session'
+let result = null // last action result shown at the top of the panel
+let stepUp = null // pending RFC 9470 challenge
+const log = []
+
+// ───────────── HTTP (through the /api proxy) ─────────────
+async function api(method, path, opts = {}) {
+  const headers = {}
+  let body
+  if (opts.json !== undefined) { headers['content-type'] = 'application/json'; body = JSON.stringify(opts.json) }
+  if (opts.form) { headers['content-type'] = 'application/x-www-form-urlencoded'; body = new URLSearchParams(opts.form).toString() }
+  if (opts.bearer) headers.authorization = `Bearer ${opts.bearer}`
+  const started = performance.now()
+  const res = await fetch(`/api${path}`, { method, headers, body })
+  const text = await res.text()
+  let json
+  try { json = text ? JSON.parse(text) : undefined } catch { json = undefined }
+  const out = { status: res.status, ok: res.ok, json, text, headers: res.headers }
+  if (!opts.quiet) {
+    log.unshift({ method, path, status: res.status, ms: Math.round(performance.now() - started),
+      reqHeaders: headers, reqBody: maskSecrets(opts.json ?? opts.form), resHeaders: Object.fromEntries(res.headers), resBody: json ?? text })
+    renderLog()
+  }
+  return out
+}
+function maskSecrets(body) {
+  if (!body || typeof body !== 'object') return body
+  const copy = { ...body }
+  if ('password' in copy) copy.password = '••••••••'
+  return copy
+}
+/** Runs an action, shows its result at the top of the panel and refreshes the session chip. */
+async function run(label, fn) {
+  try {
+    const res = await fn()
+    if (res) result = { label, status: res.status, body: res.json ?? res.text }
+  } catch (err) {
+    result = { label, status: 0, body: String(err) }
+  }
+  await refreshMe()
+  render()
+}
+async function refreshMe() {
+  const res = await api('GET', '/me', { quiet: true })
+  me = res.status === 200 ? res.json : null
+  renderHeader()
+}
+
+// ───────────── header ─────────────
+function renderHeader() {
+  document.getElementById('idp').textContent = `idp: ${cfg.idp}`
+  const who = document.getElementById('who')
+  if (me) {
+    const age = me.auth_time ? `, authenticated ${Math.max(0, Math.floor(Date.now() / 1000) - me.auth_time)}s ago` : ''
+    who.textContent = `${me.email}${me.acr ? ` · acr=${me.acr}` : ''}${age}`
+    who.className = `chip ${me.acr === 'mfa' ? 'ok' : 'warn'}`
+  } else {
+    who.textContent = 'no session'
+    who.className = 'chip bad'
+  }
+  const select = document.getElementById('accounts')
+  select.replaceChildren(...S.accounts.map((a) => el('option', { value: a.email, selected: me?.email === a.email }, a.email)))
+  select.style.display = S.accounts.length ? '' : 'none'
+  document.getElementById('switch').style.display = S.accounts.length ? '' : 'none'
+}
+document.getElementById('switch').addEventListener('click', () => {
+  const account = S.accounts.find((a) => a.email === document.getElementById('accounts').value)
+  if (account) run(`switch to ${account.email}`, () => login(account.email, account.password))
+})
+
+// ───────────── actions: milestone 1 ─────────────
+function remember(email, password, id) {
+  const existing = S.accounts.find((a) => a.email === email)
+  if (existing) Object.assign(existing, { password, id: id ?? existing.id })
+  else S.accounts.push({ email, password, id })
+  persist()
+  V.lastEmail = email
+  keep()
+}
+async function register(email, password) {
+  const res = await api('POST', '/register', { json: { email, password } })
+  if (res.status === 201) remember(email.toLowerCase(), password, res.json?.id)
+  return res
+}
+async function login(email, password) {
+  const res = await api('POST', '/login', { json: { email, password } })
+  if (res.status === 200) remember(email.toLowerCase(), password, res.json?.id)
+  stepUp = null
+  return res
+}
+const newEmail = () => `user-${random(3).toLowerCase().replace(/[^a-z0-9]/g, 'x')}@example.test`
+const emailOf = (id) => S.accounts.find((a) => a.id === id)?.email
+
+// ───────────── actions: milestones 2 and 3 ─────────────
+async function startFlow() {
+  const scope = ['profile', 'email', 'openid'].filter((s) => document.getElementById(`scope-${s}`).checked).join(' ')
+  const verifier = random(32)
+  const challenge = b64u(new Uint8Array(await crypto.subtle.digest('SHA-256', enc(verifier))))
+  const flow = { verifier, challenge, state: random(12), nonce: random(12), scope }
+  Object.assign(V, { flow, callback: null })
+  keep()
+  const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
+    scope, state: flow.state, nonce: flow.nonce, code_challenge: challenge, code_challenge_method: 'S256' })
+  location.href = `${cfg.idp}/authorize?${params}` // a real top-level navigation, like any OAuth client
+}
+async function exchangeCode() {
+  const res = await api('POST', '/token', { form: { grant_type: 'authorization_code', client_id: CLIENT_ID,
+    code: V.callback.code, redirect_uri: REDIRECT_URI, code_verifier: V.flow.verifier } })
+  if (res.status === 200) { V.tokens = res.json; V.previousRefresh = null; V.usedCode = V.callback.code; keep() }
+  return res
+}
+async function refreshTokens(useOld) {
+  const token = useOld ? V.previousRefresh : V.tokens.refresh_token
+  const res = await api('POST', '/token', { form: { grant_type: 'refresh_token', client_id: CLIENT_ID, refresh_token: token } })
+  if (res.status === 200) { V.previousRefresh = V.tokens.refresh_token; V.tokens = { ...V.tokens, ...res.json }; keep() }
+  return res
+}
+function decodeJwt(jwt) {
+  const [h, p, s] = jwt.split('.')
+  const json = (part) => JSON.parse(new TextDecoder().decode(b64uDecode(part)))
+  return { header: json(h), payload: json(p), input: `${h}.${p}`, signature: b64uDecode(s) }
+}
+async function checkIdToken() {
+  const { header, payload, input, signature } = decodeJwt(V.tokens.id_token)
+  const discovery = (await api('GET', '/.well-known/openid-configuration')).json
+  const jwksPath = new URL(discovery.jwks_uri).pathname
+  const jwks = (await api('GET', jwksPath)).json
+  const jwk = jwks.keys.find((k) => k.kid === header.kid)
+  let signatureOk = false
+  if (jwk && header.alg === 'RS256') {
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])
+    signatureOk = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, enc(input))
+  } else if (jwk && header.alg === 'ES256') {
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+    signatureOk = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, signature, enc(input))
+  }
+  const now = Math.floor(Date.now() / 1000)
+  V.idCheck = { header, payload, checks: [
+    ['alg is RS256 or ES256 (never "none")', ['RS256', 'ES256'].includes(header.alg)],
+    ['signature verifies with the key from JWKS (matched by kid)', signatureOk],
+    ['iss equals the discovery issuer', payload.iss === discovery.issuer],
+    ['aud equals our client_id', payload.aud === CLIENT_ID || (Array.isArray(payload.aud) && payload.aud.includes(CLIENT_ID))],
+    ['exp is in the future', payload.exp > now],
+    ['nonce equals the one we sent to /authorize', payload.nonce === V.flow?.nonce],
+    ['sub is not the email', !String(payload.sub).includes('@')],
+  ] }
+  keep()
+  return { status: 200, json: { id_token_checks: 'see below' } }
+}
+
+// ───────────── actions: milestone 5 (TOTP runs in the browser, like an authenticator app) ─────────────
+function base32decode(s) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  let bits = ''
+  for (const c of s.replace(/=+$/, '').toUpperCase()) bits += alphabet.indexOf(c).toString(2).padStart(5, '0')
+  const bytes = []
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2))
+  return new Uint8Array(bytes)
+}
+async function totp(secret) {
+  const counter = Math.floor(Date.now() / 30000)
+  const message = new Uint8Array(8)
+  new DataView(message.buffer).setBigUint64(0, BigInt(counter))
+  const key = await crypto.subtle.importKey('raw', base32decode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
+  const h = new Uint8Array(await crypto.subtle.sign('HMAC', key, message))
+  const o = h[h.length - 1] & 0xf
+  const n = ((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]
+  return String(n % 1_000_000).padStart(6, '0')
+}
+const mySecret = () => (me ? S.totp[me.email] : null)
+async function doStepUp() {
+  const res = await api('POST', '/stepup', { json: { code: await totp(mySecret()) } })
+  if (res.status === 204) stepUp = null
+  return res
+}
+
+// ───────────── panels ─────────────
+const org = () => S.orgs.find((o) => o.id === S.orgId)
+const needSession = () => !me && el('div', { class: 'banner' }, 'No session. Register or log in on the "1 · Session" tab first.')
+const needOrg = () => !org() && el('div', { class: 'banner' }, 'No organization selected. Create one on the "4 · Orgs & roles" tab.')
+const permBoxes = (prefix) => PERMS.map((p) => el('label', { class: 'perm' }, el('input', { type: 'checkbox', id: `${prefix}-${p}` }), p))
+const checkedPerms = (prefix) => PERMS.filter((p) => document.getElementById(`${prefix}-${p}`).checked)
+
+const panels = {
+  session: ['1 · Session', () => {
+    const email = V.lastEmail ?? newEmail()
+    return [
+      el('h2', {}, 'Register and log in'),
+      el('div', { class: 'card' },
+        el('div', { class: 'row' }, input('email', { value: email, size: 30 }), input('password', { value: 'correct-horse-battery-staple', size: 30 })),
+        el('div', { class: 'row' },
+          btn('Register', () => run('POST /register', () => register(val('email'), val('password')))),
+          btn('Log in', () => run('POST /login', () => login(val('email'), val('password'))), 'primary'),
+          btn('Register + log in', () => run('register + login', async () => { await register(val('email'), val('password')); return login(val('email'), val('password')) })),
+          btn('Log out', () => run('POST /logout', () => api('POST', '/logout'))),
+          btn('New random email', () => { V.lastEmail = newEmail(); keep(); render() })),
+        el('p', { class: 'hint' }, 'Passwords typed here are test data: they are remembered in this browser so "Switch user" works.')),
+      el('h2', {}, 'Things to try'),
+      el('div', { class: 'card' },
+        el('div', { class: 'row' },
+          btn('GET /me', () => run('GET /me', () => api('GET', '/me'))),
+          btn('Login with a wrong password', () => run('wrong password', () => api('POST', '/login', { json: { email: val('email'), password: 'definitely-wrong-password' } })), 'attack'),
+          btn('Login as unknown user', () => run('unknown user', () => api('POST', '/login', { json: { email: 'nobody@example.test', password: 'definitely-wrong-password' } })), 'attack'),
+          btn('Short password', () => run('short password', () => api('POST', '/register', { json: { email: `short-${random(3)}@example.test`, password: 'short' } })), 'attack')),
+        el('p', { class: 'hint' }, 'The two failed logins must look identical (same status, same body). After a login, open the request in the log: the x-console-set-cookie line shows the cookie attributes your server set.')),
+    ]
+  }],
+
+  oauth: ['2 · OAuth', () => [
+    needSession(),
+    el('h2', {}, 'Authorization Code + PKCE'),
+    el('div', { class: 'card' },
+      el('div', { class: 'row' }, el('label', {}, 'scopes'),
+        ...['profile', 'email', 'openid'].map((s) => el('label', { class: 'perm' }, el('input', { type: 'checkbox', id: `scope-${s}`, checked: true }), s))),
+      el('div', { class: 'row' }, btn('Start the flow (go to /authorize)', startFlow, 'primary')),
+      el('p', { class: 'hint' }, `This console is the client app "${CLIENT_ID}". It generates a code_verifier, sends its SHA-256 as code_challenge, and your server redirects back to ${REDIRECT_URI}.`)),
+    V.flow && el('div', { class: 'card' }, el('div', { class: 'muted' }, 'flow in progress'),
+      el('pre', {}, pretty({ code_verifier: V.flow.verifier, code_challenge: V.flow.challenge, state: V.flow.state, nonce: V.flow.nonce, scope: V.flow.scope }))),
+    V.callback && el('div', { class: 'card' },
+      el('div', {}, 'Callback received: ', V.callback.error ? el('span', { class: 'bad' }, `error=${V.callback.error}`) : el('span', { class: 'ok' }, `code=${short(V.callback.code, 16)}`)),
+      el('div', { class: V.callback.stateOk ? 'ok' : 'bad' }, V.callback.stateOk ? 'state matches the one we sent (CSRF check passed)' : 'state does NOT match: a real client must stop here'),
+      V.callback.code && el('div', { class: 'row' },
+        btn('Exchange code for tokens', () => run('POST /token (authorization_code)', exchangeCode), 'primary'),
+        btn('Exchange with a wrong code_verifier', () => run('wrong verifier', () => api('POST', '/token', { form: { grant_type: 'authorization_code', client_id: CLIENT_ID, code: V.callback.code, redirect_uri: REDIRECT_URI, code_verifier: random(32) } })), 'attack'),
+        V.usedCode && btn('Reuse the same code', () => run('code reuse', exchangeCode), 'attack'))),
+    V.tokens && el('h2', {}, 'Tokens'),
+    V.tokens && el('div', { class: 'card' },
+      el('pre', {}, pretty({ ...V.tokens, id_token: V.tokens.id_token ? `${short(V.tokens.id_token, 40)} (see tab 3)` : undefined })),
+      el('div', { class: 'row' },
+        btn('GET /api/profile', () => run('GET /api/profile', () => api('GET', '/api/profile', { bearer: V.tokens.access_token }))),
+        btn('Refresh (rotates the refresh token)', () => run('POST /token (refresh_token)', () => refreshTokens(false))),
+        V.previousRefresh && btn('Replay the previous refresh token', () => run('refresh replay', () => refreshTokens(true)), 'attack'),
+        btn('Call the API without a token', () => run('no token', () => api('GET', '/api/profile')), 'attack')),
+      el('p', { class: 'hint' }, 'After a replay, the whole token family must be revoked: try GET /api/profile again and expect a 401.')),
+  ]],
+
+  oidc: ['3 · OIDC', () => [
+    el('h2', {}, 'Provider metadata'),
+    el('div', { class: 'card' }, el('div', { class: 'row' },
+      btn('GET discovery', () => run('discovery', () => api('GET', '/.well-known/openid-configuration'))),
+      btn('GET /jwks.json', () => run('jwks', () => api('GET', '/jwks.json'))))),
+    el('h2', {}, 'ID token'),
+    !V.tokens?.id_token && el('p', { class: 'hint' }, 'No id_token yet. Run the flow on tab 2 with the "openid" scope.'),
+    V.tokens?.id_token && el('div', { class: 'card' },
+      el('div', { class: 'row' },
+        btn('Decode and validate the id_token', () => run('validate id_token', checkIdToken), 'primary'),
+        btn('GET /userinfo', () => run('GET /userinfo', () => api('GET', '/userinfo', { bearer: V.tokens.access_token }))),
+        btn('Use the id_token as an access token', () => run('id_token as bearer', () => api('GET', '/api/profile', { bearer: V.tokens.id_token })), 'attack')),
+      V.idCheck && el('div', {},
+        el('pre', {}, pretty({ header: V.idCheck.header, payload: V.idCheck.payload })),
+        el('table', {}, ...V.idCheck.checks.map(([name, ok]) => el('tr', {}, el('td', { class: ok ? 'ok' : 'bad' }, ok ? 'pass' : 'FAIL'), el('td', {}, name)))))),
+  ]],
+
+  orgs: ['4 · Orgs & roles', () => {
+    const o = org()
+    return [
+      needSession(),
+      stepUp && el('div', { class: 'banner' }, `Step-up required: acr_values=${stepUp.acr_values}, max_age=${stepUp.max_age}. `,
+        mySecret() ? btn('Do step-up now', () => run('POST /stepup', doStepUp), 'primary') : 'Enroll TOTP on tab 5 first.'),
+      el('h2', {}, 'Organization'),
+      el('div', { class: 'card' },
+        el('div', { class: 'row' }, input('org-name', { value: `Acme ${random(2)}`, size: 20 }),
+          btn('Create org', () => run('POST /orgs', async () => {
+            const res = await api('POST', '/orgs', { json: { name: val('org-name') } })
+            if (res.status === 201) { S.orgs.push({ id: res.json.id, name: res.json.name, roles: [], delegations: [] }); S.orgId = res.json.id; persist() }
+            return res
+          }), 'primary'),
+          S.orgs.length > 0 && el('select', { id: 'org-select', onchange: (e) => { S.orgId = e.target.value; persist(); render() } },
+            ...S.orgs.map((x) => el('option', { value: x.id, selected: x.id === S.orgId }, `${x.name} (${short(x.id, 8)})`))),
+          o && btn('GET org', () => run('GET /orgs/:id', () => api('GET', `/orgs/${o.id}`)))),
+        el('p', { class: 'hint' }, 'The API has no "list" endpoints for orgs, roles or delegations, so this console remembers the ones it created.')),
+      o && el('h2', {}, 'Roles'),
+      o && el('div', { class: 'card' },
+        el('div', { class: 'row' }, input('role-name', { value: 'accountant', size: 16 }), ...permBoxes('role')),
+        el('div', { class: 'row' }, btn('Create role', () => run('POST roles', async () => {
+          const res = await api('POST', `/orgs/${o.id}/roles`, { json: { name: val('role-name'), permissions: checkedPerms('role') } })
+          if (res.status === 201) { o.roles.push(res.json); persist() }
+          return res
+        }))),
+        o.roles.length > 0 && el('table', {}, el('tr', {}, el('th', {}, 'role'), el('th', {}, 'id'), el('th', {}, 'permissions')),
+          ...o.roles.map((r) => el('tr', {}, el('td', {}, r.name), el('td', {}, short(r.id, 8)), el('td', {}, (r.permissions || []).join(', ')))))),
+      o && el('h2', {}, 'Members'),
+      o && el('div', { class: 'card' }, el('div', { class: 'row' },
+        el('select', { id: 'member-email' }, ...S.accounts.map((a) => el('option', { value: a.email }, a.email))),
+        el('select', { id: 'member-role' }, ...o.roles.map((r) => el('option', { value: r.id }, r.name))),
+        btn('Add member', () => run('POST members', () => api('POST', `/orgs/${o.id}/members`, { json: { email: val('member-email'), roleId: val('member-role') } }))),
+        btn('Change role', () => run('PUT member', () => api('PUT', `/orgs/${o.id}/members/${S.accounts.find((a) => a.email === val('member-email'))?.id}`, { json: { roleId: val('member-role') } })))),
+        el('p', { class: 'hint' }, 'Create a second user on tab 1, switch back to the owner, add them here, then use "Switch user" to act as them.')),
+      o && el('h2', {}, 'Invoices'),
+      o && el('div', { class: 'card' },
+        el('div', { class: 'row' }, input('amount', { value: '150000', size: 10 }), el('span', { class: 'muted' }, 'cents (>= 100000 needs step-up to approve)'),
+          btn('Create invoice', () => run('POST invoices', () => api('POST', `/orgs/${o.id}/invoices`, { json: { amount: Number(val('amount')) } }))),
+          btn('List invoices', () => run('GET invoices', async () => { const res = await api('GET', `/orgs/${o.id}/invoices`); V.invoices = res.status === 200 ? res.json : []; keep(); return res }))),
+        (V.invoices?.length > 0) && el('table', {}, el('tr', {}, el('th', {}, 'id'), el('th', {}, 'amount'), el('th', {}, 'owner'), el('th', {}, 'status'), el('th', {}, '')),
+          ...V.invoices.map((inv) => el('tr', {}, el('td', {}, short(inv.id, 8)), el('td', {}, inv.amount), el('td', {}, emailOf(inv.ownerId) ?? short(inv.ownerId, 8)), el('td', {}, inv.status ?? ''),
+            el('td', {}, btn('Approve', () => run('approve', async () => {
+              const res = await api('POST', `/orgs/${o.id}/invoices/${inv.id}/approve`)
+              stepUp = res.status === 401 && res.json?.error === 'insufficient_user_authentication' ? res.json : null
+              if (res.status === 200) inv.status = res.json.status
+              return res
+            }))))))),
+      o && el('h2', {}, 'Delegations'),
+      o && el('div', { class: 'card' },
+        el('div', { class: 'row' }, el('select', { id: 'deleg-email' }, ...S.accounts.map((a) => el('option', { value: a.email }, a.email))),
+          input('deleg-ttl', { value: '300', size: 6 }), el('span', { class: 'muted' }, 'seconds')),
+        el('div', { class: 'row' }, ...permBoxes('deleg')),
+        el('div', { class: 'row' }, btn('Delegate', () => run('POST delegations', async () => {
+          const body = { toEmail: val('deleg-email'), permissions: checkedPerms('deleg'), expiresInSeconds: Number(val('deleg-ttl')) }
+          const res = await api('POST', `/orgs/${o.id}/delegations`, { json: body })
+          if (res.status === 201) { o.delegations.push({ id: res.json.id, ...body }); persist() }
+          return res
+        }))),
+        o.delegations.length > 0 && el('table', {}, el('tr', {}, el('th', {}, 'to'), el('th', {}, 'permissions'), el('th', {}, '')),
+          ...o.delegations.map((d) => el('tr', {}, el('td', {}, d.toEmail), el('td', {}, d.permissions.join(', ')),
+            el('td', {}, btn('Revoke', () => run('DELETE delegation', () => api('DELETE', `/orgs/${o.id}/delegations/${d.id}`)))))))),
+    ]
+  }],
+
+  mfa: ['5 · MFA & audit', () => {
+    const secret = mySecret()
+    const o = org()
+    return [
+      needSession(),
+      el('h2', {}, 'TOTP second factor'),
+      el('div', { class: 'card' },
+        el('div', { class: 'row' },
+          btn('Enroll', () => run('POST /mfa/totp/enroll', async () => {
+            const res = await api('POST', '/mfa/totp/enroll', { json: {} })
+            if (res.status === 200 && me) { S.totp[me.email] = res.json.secret; persist() }
+            return res
+          })),
+          secret && btn('Confirm with the current code', () => run('POST /mfa/totp/confirm', async () => api('POST', '/mfa/totp/confirm', { json: { code: await totp(secret) } }))),
+          secret && btn('Step up', () => run('POST /stepup', doStepUp), 'primary'),
+          secret && btn('Step up with a wrong code', () => run('wrong code', () => api('POST', '/stepup', { json: { code: '000000' } })), 'attack')),
+        secret && el('div', {}, el('div', { class: 'muted' }, 'This console acts as your authenticator app:'),
+          el('div', { class: 'totp', id: 'totp-code' }, '······'), el('div', { class: 'muted', id: 'totp-left' }, ''),
+          el('pre', {}, `secret: ${secret}`)),
+        el('p', { class: 'hint' }, 'Also add the secret to a real authenticator app once: both must show the same code. Clicking "Step up" twice within 30 s sends the same code twice, which is the replay case.')),
+      el('h2', {}, 'Audit trail'),
+      needOrg(),
+      o && el('div', { class: 'card' },
+        el('div', { class: 'row' }, btn('Load audit log', () => run('GET audit', async () => { const res = await api('GET', `/orgs/${o.id}/audit?limit=50`); V.audit = res.status === 200 ? res.json : []; keep(); return res }), 'primary')),
+        (V.audit?.length > 0) && el('table', {}, el('tr', {}, ...['time', 'action', 'outcome', 'actor', 'subject', 'on_behalf_of', 'resource', 'request_id'].map((h) => el('th', {}, h))),
+          ...V.audit.map((e) => el('tr', {},
+            el('td', {}, (e.ts || '').slice(11, 19)), el('td', {}, e.action),
+            el('td', { class: e.outcome === 'success' ? 'ok' : e.outcome === 'denied' ? 'bad' : 'warn' }, e.outcome),
+            el('td', {}, emailOf(e.actor) ?? short(e.actor, 8)), el('td', {}, e.subject ? emailOf(e.subject) ?? short(e.subject, 8) : ''),
+            el('td', {}, e.on_behalf_of ? emailOf(e.on_behalf_of) ?? short(e.on_behalf_of, 8) : ''),
+            el('td', {}, short(e.resource, 18)), el('td', {}, short(e.request_id, 8)))))),
+    ]
+  }],
+}
+
+// ───────────── rendering ─────────────
+function render() {
+  document.getElementById('tabs').replaceChildren(...Object.entries(panels).map(([key, [label]]) =>
+    el('button', { class: key === tab ? 'on' : '', onclick: () => { tab = key; result = null; render() } }, label)))
+  const body = panels[tab][1]().filter(Boolean)
+  const top = result && el('div', { class: 'card result' },
+    el('div', {}, el('span', { class: 'muted' }, `${result.label} → `), el('span', { class: `st${String(result.status)[0]}` }, result.status || 'failed')),
+    result.body != null && result.body !== '' && el('pre', {}, pretty(result.body)))
+  document.getElementById('panel').replaceChildren(...[top, ...body].filter(Boolean))
+  tickTotp()
+}
+function renderLog() {
+  document.getElementById('log').replaceChildren(el('h2', {}, `HTTP log (${log.length})`),
+    ...log.slice(0, 100).map((e) => el('details', { class: 'req' },
+      el('summary', {}, el('span', { class: `st st${String(e.status)[0]}` }, e.status), el('span', {}, e.method), el('span', { style: 'flex:1;word-break:break-all' }, e.path), el('span', { class: 'muted' }, `${e.ms}ms`)),
+      el('pre', {}, `> ${e.method} ${e.path}\n${Object.entries(e.reqHeaders).map(([k, v]) => `> ${k}: ${k === 'authorization' ? short(v, 24) : v}`).join('\n')}${e.reqBody ? `\n\n${pretty(e.reqBody)}` : ''}`),
+      el('pre', {}, `< ${e.status}\n${Object.entries(e.resHeaders).map(([k, v]) => `< ${k}: ${v}`).join('\n')}${e.resBody ? `\n\n${pretty(e.resBody)}` : ''}`))))
+}
+async function tickTotp() {
+  const node = document.getElementById('totp-code')
+  const secret = mySecret()
+  if (!node || !secret) return
+  node.textContent = await totp(secret)
+  document.getElementById('totp-left').textContent = `changes in ${30 - (Math.floor(Date.now() / 1000) % 30)}s`
+}
+setInterval(tickTotp, 1000)
+setInterval(renderHeader, 5000)
+
+// ───────────── boot ─────────────
+;(async () => {
+  cfg = await (await fetch('/config')).json()
+  if (location.pathname === '/callback') {
+    // We are the OAuth client: the IdP has just redirected the browser back to us.
+    const q = new URLSearchParams(location.search)
+    V.callback = { code: q.get('code'), error: q.get('error'), state: q.get('state'), stateOk: Boolean(V.flow) && q.get('state') === V.flow.state }
+    V.usedCode = null
+    keep()
+    history.replaceState(null, '', '/')
+    tab = 'oauth'
+  }
+  await refreshMe()
+  render()
+  renderLog()
+})()
+</script>
+</body>
+</html>

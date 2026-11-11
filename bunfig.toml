@@ -1,0 +1,3 @@
+[test]
+# Starts src/server.ts automatically when nothing is listening on BASE_URL.
+preload = ["./test/setup.ts"]
