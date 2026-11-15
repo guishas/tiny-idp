@@ -79,7 +79,11 @@ test/                acceptance tests: the specification of each milestone
   helpers.ts         cookie jar, PKCE, JWT verification and TOTP used by the tests
   setup.ts           starts the server for a test run if it is not already running
 console/             dev console (see below); a development tool, not part of the IdP
+docs/GUIDE.md        step-by-step guide to the milestones (in Portuguese)
 ```
+
+A step-by-step guide to each milestone (API contract, checklist, acceptance criteria), written
+in Portuguese, lives in [`docs/GUIDE.md`](docs/GUIDE.md).
 
 The project is **spec-first**. The acceptance tests in `test/` describe the HTTP contract of every
 milestone (the contract is written at the top of each spec file), and the server is written to
@@ -166,7 +170,7 @@ Test names and messages are in Portuguese.
 
 ## What's implemented
 
-- [ ] **Milestone 1** — registration, login and server-side sessions
+- [x] **Milestone 1** — registration, login and server-side sessions
 - [ ] **Milestone 2** — OAuth 2.0 Authorization Code + PKCE, scopes, refresh token rotation
 - [ ] **Milestone 3** — OpenID Connect: discovery, JWKS, ID token, userinfo
 - [ ] **Milestone 4** — organizations, custom roles, `can()`, delegation

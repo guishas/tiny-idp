@@ -30,6 +30,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.5",
     "fastify": "^5.7.4",
     "zod": "^4.3.6"
   }
