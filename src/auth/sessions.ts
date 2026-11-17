@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto'
 import type { FastifyReply } from 'fastify'
 
 import { env } from '@/env'
+import { randomToken } from '@/lib/random'
 import { type Session, sessions } from '@/store'
 
 export const SESSION_COOKIE = 'sid'
@@ -12,8 +12,7 @@ export function createSession(userId: string): Session {
   const now = Date.now()
 
   const session: Session = {
-    // 32 random bytes = 256 bits of entropy: impossible to guess or enumerate.
-    id: randomBytes(32).toString('base64url'),
+    id: randomToken(),
     userId,
     createdAt: now,
     expiresAt: now + SESSION_TTL_SECONDS * 1000,

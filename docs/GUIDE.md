@@ -157,23 +157,23 @@ JSON malformado em qualquer rota deve dar `400`, nunca `500`.
 
 **Passo a passo, parte 1: o fluxo do code**
 
-- [ ] `bun add @fastify/formbody` e registre o plugin: o `/token` recebe `application/x-www-form-urlencoded`, não JSON
-- [ ] Registre o cliente `demo-client` e valide o `redirect_uri` por igualdade exata (nada de `startsWith`)
-- [ ] `GET /authorize`: valide `client_id` e `redirect_uri` **antes** de qualquer redirect. Só depois trate os demais erros, redirecionando para o `redirect_uri` com `error` e `state`
-- [ ] Sem sessão do Marco 1, `reply.redirect('/login?...')`. Não precisa existir uma tela de login
-- [ ] Aceite apenas `code_challenge_method=S256`; recuse `plain` e a ausência de PKCE
-- [ ] Gere o `code` (32 bytes aleatórios) e guarde com ele: `client_id`, `redirect_uri`, `code_challenge`, usuário, escopo e validade de 60 s. Devolva o mesmo `state` recebido
-- [ ] `POST /token` com `authorization_code`: confira `client_id`, `redirect_uri` idêntico ao do `/authorize`, expiração e que `createHash('sha256').update(code_verifier).digest('base64url')` é igual ao `code_challenge`
-- [ ] O `code` vale uma única vez: marque-o como usado **antes** das demais checagens, para que uma troca que falha também o queime
-- [ ] Access token opaco (32 bytes aleatórios) com \~10 min de vida, guardado em um `Map` com usuário, cliente e escopo. `reply.header('cache-control', 'no-store')`
-- [ ] `GET /api/profile`: leia o Bearer, valide, exija o escopo `profile`
+- [x] `bun add @fastify/formbody` e registre o plugin: o `/token` recebe `application/x-www-form-urlencoded`, não JSON
+- [x] Registre o cliente `demo-client` e valide o `redirect_uri` por igualdade exata (nada de `startsWith`)
+- [x] `GET /authorize`: valide `client_id` e `redirect_uri` **antes** de qualquer redirect. Só depois trate os demais erros, redirecionando para o `redirect_uri` com `error` e `state`
+- [x] Sem sessão do Marco 1, `reply.redirect('/login?...')`. Não precisa existir uma tela de login
+- [x] Aceite apenas `code_challenge_method=S256`; recuse `plain` e a ausência de PKCE
+- [x] Gere o `code` (32 bytes aleatórios) e guarde com ele: `client_id`, `redirect_uri`, `code_challenge`, usuário, escopo e validade de 60 s. Devolva o mesmo `state` recebido
+- [x] `POST /token` com `authorization_code`: confira `client_id`, `redirect_uri` idêntico ao do `/authorize`, expiração e que `createHash('sha256').update(code_verifier).digest('base64url')` é igual ao `code_challenge`
+- [x] O `code` vale uma única vez: marque-o como usado **antes** das demais checagens, para que uma troca que falha também o queime
+- [x] Access token opaco (32 bytes aleatórios) com \~10 min de vida, guardado em um `Map` com usuário, cliente e escopo. `reply.header('cache-control', 'no-store')`
+- [x] `GET /api/profile`: leia o Bearer, valide, exija o escopo `profile`
 
 **Passo a passo, parte 2: refresh com rotação**
 
-- [ ] Cada troca de `code` cria uma "família" (um id aleatório) que acompanha todos os tokens derivados dela
-- [ ] `grant_type=refresh_token`: emite um access e um refresh novos e marca o refresh antigo como usado
-- [ ] Se um refresh **já usado** aparecer de novo, revogue a família inteira: alguém tem uma cópia
-- [ ] Bônus: reusar um `code` revoga os tokens emitidos com ele; refresh não amplia escopo; `code` de um cliente não serve para outro
+- [x] Cada troca de `code` cria uma "família" (um id aleatório) que acompanha todos os tokens derivados dela
+- [x] `grant_type=refresh_token`: emite um access e um refresh novos e marca o refresh antigo como usado
+- [x] Se um refresh **já usado** aparecer de novo, revogue a família inteira: alguém tem uma cópia
+- [x] Bônus: reusar um `code` revoga os tokens emitidos com ele; refresh não amplia escopo; `code` de um cliente não serve para outro
 
 **No console (aba 2 · OAuth):** faça login na aba 1 e clique em "Start the flow". O navegador vai ao seu `/authorize` e volta para o console com o `code`; o console confere o `state` e troca o `code` por tokens. Depois experimente, nesta ordem: "Refresh", "Replay the previous refresh token" (precisa dar `400`) e "GET /api/profile" (agora precisa dar `401`, porque a família foi revogada). Teste também "Exchange with a wrong code\_verifier" e "Reuse the same code".
 
@@ -181,9 +181,9 @@ JSON malformado em qualquer rota deve dar `400`, nunca `500`.
 
 **Critérios de aceite**
 
-- [ ] `bun run test:m2` com 17 testes verdes (mais 3 bônus)
-- [ ] Manual: o `code` expira em 60 s (espere um minuto no console antes de trocar)
-- [ ] Manual: nenhum token nem `code` aparece em log
+- [x] `bun run test:m2` com 17 testes verdes (mais 3 bônus)
+- [x] Manual: o `code` expira em 60 s (espere um minuto no console antes de trocar)
+- [x] Manual: nenhum token nem `code` aparece em log
 - [ ] Você explica em voz alta, sem olhar, por que o PKCE impede o uso de um `code` roubado e para que serve o `state`
 
 **Commit sugerido:** `feat: OAuth 2.0 authorization code flow with PKCE and refresh rotation`

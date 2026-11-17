@@ -15,7 +15,7 @@ function clientErrorStatus(error: unknown): number | undefined {
 
 export function errorHandler(error: unknown, request: FastifyRequest, reply: FastifyReply) {
   if (error instanceof HttpError) {
-    return reply.code(error.statusCode).send({ error: error.code })
+    return reply.code(error.statusCode).headers(error.headers).send({ error: error.code })
   }
 
   const status = clientErrorStatus(error)
