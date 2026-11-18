@@ -173,7 +173,7 @@ Test names and messages are in Portuguese.
 - [x] **Milestone 1** — registration, login and server-side sessions
 - [x] **Milestone 2** — OAuth 2.0 Authorization Code + PKCE, scopes, refresh token rotation
 - [x] **Milestone 3** — OpenID Connect: discovery, JWKS, ID token, userinfo
-- [ ] **Milestone 4** — organizations, custom roles, `can()`, delegation
+- [x] **Milestone 4** — organizations, custom roles, `can()`, delegation
 - [ ] **Milestone 5** — TOTP, step-up authentication (RFC 9470), audit log
 - [ ] **Milestone 6** — `ARCHITECTURE.md`: diagram, threat model, decisions and trade-offs
 - [ ] **Milestone 7** — final README, CI

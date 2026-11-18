@@ -7,6 +7,9 @@ import { apiRoutes } from '@/http/controllers/api/routes'
 import { authRoutes } from '@/http/controllers/auth/routes'
 import { oauthRoutes } from '@/http/controllers/oauth/routes'
 import { oidcRoutes } from '@/http/controllers/oidc/routes'
+import { delegationRoutes } from '@/http/controllers/orgs/delegation-routes'
+import { invoiceRoutes } from '@/http/controllers/orgs/invoice-routes'
+import { orgRoutes } from '@/http/controllers/orgs/routes'
 import { errorHandler, notFoundHandler } from '@/http/error-handler'
 
 export const app = fastify({
@@ -32,3 +35,8 @@ await app.register(apiRoutes)
 
 // Milestone 3: OpenID Connect on top of the OAuth server (discovery, keys, userinfo).
 await app.register(oidcRoutes)
+
+// Milestone 4: multi-tenant organizations, custom roles, invoices and delegation.
+await app.register(orgRoutes)
+await app.register(invoiceRoutes)
+await app.register(delegationRoutes)

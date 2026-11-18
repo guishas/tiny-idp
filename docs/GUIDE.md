@@ -265,17 +265,17 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 **Passo a passo**
 
-- [ ] Tipos e `Map`s em `store.ts`: `Org` com `roles`, `members` (usuário → papel), `invoices` e `delegations`
-- [ ] Escreva `src/authz/can.ts` **primeiro**, sem Fastify. É uma função pura: faça-a devolver também *por que* permitiu (`via: 'role' | 'delegation'` e o delegante). O Marco 5 vai precisar disso
-- [ ] Um helper `getOrg(request)` que carrega a org da rota e confere se o usuário é membro; se não for, `404`
-- [ ] `POST /orgs` cria o papel `owner` com todas as permissões
-- [ ] Schema Zod com `z.enum(PERMISSIONS)`: permissão desconhecida vira `400` sem código extra
-- [ ] Trava **anti-escalonamento** em roles, members e delegations: ninguém concede permissão que não possui pelo próprio papel
-- [ ] Faturas: busque sempre **dentro** da org da rota (`org.invoices.get(id)`), nunca em um `Map` global de faturas. É isso que evita IDOR entre organizações
-- [ ] Listagem: com apenas `invoice:read:own`, filtre por `ownerId` no servidor
-- [ ] Detalhe de fatura alheia (com `read:own`) ou de outra org: `404`, não `403`
-- [ ] Delegação com validade; se o delegante perder a permissão, ela para de valer na hora (o `can()` consulta o papel do delegante no momento da checagem)
-- [ ] Revogação por quem criou ou por quem tem `delegation:manage`
+- [x] Tipos e `Map`s em `store.ts`: `Org` com `roles`, `members` (usuário → papel), `invoices` e `delegations`
+- [x] Escreva `src/authz/can.ts` **primeiro**, sem Fastify. É uma função pura: faça-a devolver também *por que* permitiu (`via: 'role' | 'delegation'` e o delegante). O Marco 5 vai precisar disso
+- [x] Um helper `getOrg(request)` que carrega a org da rota e confere se o usuário é membro; se não for, `404`
+- [x] `POST /orgs` cria o papel `owner` com todas as permissões
+- [x] Schema Zod com `z.enum(PERMISSIONS)`: permissão desconhecida vira `400` sem código extra
+- [x] Trava **anti-escalonamento** em roles, members e delegations: ninguém concede permissão que não possui pelo próprio papel
+- [x] Faturas: busque sempre **dentro** da org da rota (`org.invoices.get(id)`), nunca em um `Map` global de faturas. É isso que evita IDOR entre organizações
+- [x] Listagem: com apenas `invoice:read:own`, filtre por `ownerId` no servidor
+- [x] Detalhe de fatura alheia (com `read:own`) ou de outra org: `404`, não `403`
+- [x] Delegação com validade; se o delegante perder a permissão, ela para de valer na hora (o `can()` consulta o papel do delegante no momento da checagem)
+- [x] Revogação por quem criou ou por quem tem `delegation:manage`
 
 **No console (aba 4 · Orgs & roles):** crie dois usuários na aba 1. Como o primeiro: crie a org, um papel `accountant` só com `invoice:create` e `invoice:read:own`, e adicione o segundo como membro. Crie uma fatura. Use "Switch user" (no topo) para virar o segundo usuário e clique em "List invoices": a fatura do dono não pode aparecer, e "Approve" precisa dar `403`. Volte ao dono, delegue `invoice:approve` por 300 s e repita.
 
@@ -283,8 +283,8 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 **Critérios de aceite**
 
-- [ ] `bun run test:m4` com 15 testes verdes (mais 1 bônus: delegação não encadeia)
-- [ ] Manual: no código não existe `if (role.name === 'owner')`; só `can(...)`
+- [x] `bun run test:m4` com 15 testes verdes (mais 1 bônus: delegação não encadeia)
+- [x] Manual: no código não existe `if (role.name === 'owner')`; só `can(...)`
 - [ ] Você explica RBAC, ABAC e ReBAC usando este marco como exemplo: papéis são RBAC, `read:own` é uma regra de atributo, delegação é uma relação entre duas pessoas
 
 **Commit sugerido:** `feat: multi-tenant orgs, custom roles, deny-by-default can() and delegation`

@@ -12,12 +12,9 @@ import {
 } from '@/auth/sessions'
 import { HttpError } from '@/http/http-error'
 import { requireUser } from '@/http/require-user'
+import { emailSchema } from '@/http/schemas'
 import { parseBody } from '@/http/validate'
 import { type User, users, usersByEmail } from '@/store'
-
-// Emails are case-insensitive in practice, so "Ana@X.com" and "ana@x.com" must be the same
-// account. Normalizing before validating and storing guarantees that.
-const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email())
 
 const registerSchema = z.object({
   email: emailSchema,
