@@ -226,7 +226,7 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 - [x] `bun run test:m3` com 7 testes verdes (mais 2 bônus)
 - [x] Manual: no console, todas as checagens do `id_token` aparecem como `pass`
-- [ ] Você sabe dizer o que cada claim (`iss`, `sub`, `aud`, `exp`, `nonce`) protege, e a diferença entre `id_token` e access token
+- [x] Você sabe dizer o que cada claim (`iss`, `sub`, `aud`, `exp`, `nonce`) protege, e a diferença entre `id_token` e access token
 
 **Commit sugerido:** `feat: OpenID Connect discovery, JWKS, id_token and userinfo`
 
