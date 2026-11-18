@@ -26,6 +26,10 @@ export interface AuthorizationCode {
   codeChallenge: string
   userId: string
   scope: string[]
+  // OIDC: echoed into the ID token to tie it to this login attempt.
+  nonce?: string
+  // When the user logged in (epoch seconds), taken from the session that approved the request.
+  authTime: number
   expiresAt: number
   // Set as soon as the code is presented, even if the exchange then fails.
   used: boolean

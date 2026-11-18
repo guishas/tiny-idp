@@ -2,6 +2,7 @@ import { HttpError } from '@/http/http-error'
 import { findClient, isScopeAllowed, splitScope } from '@/oauth/clients'
 import { verifyPkce } from '@/oauth/pkce'
 import { createFamily, issueTokens, revokeFamily } from '@/oauth/tokens'
+import { createIdToken } from '@/oidc/id-token'
 import { authorizationCodes, refreshTokens, tokenFamilies } from '@/store'
 
 // RFC 6749 section 5.2: every failure to redeem a code or refresh token looks the same.
@@ -43,7 +44,20 @@ export function exchangeAuthorizationCode(input: {
   const family = createFamily(record.userId, record.clientId, record.scope)
   record.familyId = family.id
 
-  return issueTokens(family)
+  const tokens = issueTokens(family)
+
+  // The openid scope is what turns a plain OAuth exchange into an OIDC login. Without it there
+  // is no ID token.
+  if (!record.scope.includes('openid')) return tokens
+
+  const idToken = createIdToken({
+    userId: record.userId,
+    clientId: record.clientId,
+    authTime: record.authTime,
+    nonce: record.nonce,
+  })
+
+  return { ...tokens, id_token: idToken }
 }
 
 export function refreshTokenGrant(input: {

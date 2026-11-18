@@ -209,14 +209,14 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 **Passo a passo**
 
-- [ ] Gere o par de chaves ao subir o servidor: `generateKeyPairSync('rsa', { modulusLength: 2048 })` de `node:crypto`, e um `kid` aleatório
-- [ ] JWKS: `publicKey.export({ format: 'jwk' })` mais `kid`, `alg: 'RS256'` e `use: 'sig'`. Confira que nenhum campo privado (`d`, `p`, `q`...) aparece
-- [ ] Discovery: use `env.ISSUER` (já vem **sem barra final** em `src/env.ts`) e o mesmo valor no `iss` dos tokens
-- [ ] Guarde o `nonce` do `/authorize` junto do `code` e devolva-o no `id_token`
-- [ ] Assine o JWT à mão na primeira vez: `base64url(header).base64url(payload)` e `sign('RSA-SHA256', Buffer.from(input), privateKey)`. São 5 linhas e você enxerga cada parte
-- [ ] `sub` é o `id` do usuário (estável e opaco), nunca o email
-- [ ] `/userinfo`: Bearer válido com o escopo `openid`; `sub` igual ao do `id_token`; `email` apenas com o escopo `email`
-- [ ] Bônus: um `id_token` enviado como Bearer precisa ser recusado. Com access tokens opacos isso já acontece sozinho; entenda por quê
+- [x] Gere o par de chaves ao subir o servidor: `generateKeyPairSync('rsa', { modulusLength: 2048 })` de `node:crypto`, e um `kid` aleatório
+- [x] JWKS: `publicKey.export({ format: 'jwk' })` mais `kid`, `alg: 'RS256'` e `use: 'sig'`. Confira que nenhum campo privado (`d`, `p`, `q`...) aparece
+- [x] Discovery: use `env.ISSUER` (já vem **sem barra final** em `src/env.ts`) e o mesmo valor no `iss` dos tokens
+- [x] Guarde o `nonce` do `/authorize` junto do `code` e devolva-o no `id_token`
+- [x] Assine o JWT à mão na primeira vez: `base64url(header).base64url(payload)` e `sign('RSA-SHA256', Buffer.from(input), privateKey)`. São 5 linhas e você enxerga cada parte
+- [x] `sub` é o `id` do usuário (estável e opaco), nunca o email
+- [x] `/userinfo`: Bearer válido com o escopo `openid`; `sub` igual ao do `id_token`; `email` apenas com o escopo `email`
+- [x] Bônus: um `id_token` enviado como Bearer precisa ser recusado. Com access tokens opacos isso já acontece sozinho; entenda por quê
 
 **No console (aba 3 · OIDC):** refaça o fluxo da aba 2 com o escopo `openid` marcado e clique em "Decode and validate the id\_token". O console faz no navegador as checagens que um cliente de verdade faria (assinatura com a chave do JWKS, `iss`, `aud`, `exp`, `nonce`) e mostra cada uma como `pass` ou `FAIL`. O botão "Use the id\_token as an access token" precisa dar `401`.
 
@@ -224,8 +224,8 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 **Critérios de aceite**
 
-- [ ] `bun run test:m3` com 7 testes verdes (mais 2 bônus)
-- [ ] Manual: no console, todas as checagens do `id_token` aparecem como `pass`
+- [x] `bun run test:m3` com 7 testes verdes (mais 2 bônus)
+- [x] Manual: no console, todas as checagens do `id_token` aparecem como `pass`
 - [ ] Você sabe dizer o que cada claim (`iss`, `sub`, `aud`, `exp`, `nonce`) protege, e a diferença entre `id_token` e access token
 
 **Commit sugerido:** `feat: OpenID Connect discovery, JWKS, id_token and userinfo`

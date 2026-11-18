@@ -17,6 +17,7 @@ export interface TokenResponse {
   expires_in: number
   refresh_token: string
   scope: string
+  id_token?: string
 }
 
 export function issueAuthorizationCode(input: {
@@ -25,6 +26,8 @@ export function issueAuthorizationCode(input: {
   codeChallenge: string
   userId: string
   scope: string[]
+  nonce?: string
+  authTime: number
 }) {
   const code = randomToken()
 

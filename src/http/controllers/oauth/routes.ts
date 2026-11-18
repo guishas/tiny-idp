@@ -15,6 +15,7 @@ const authorizeQuerySchema = z.object({
   redirect_uri: z.string().optional(),
   scope: z.string().optional(),
   state: z.string().max(512).optional(),
+  nonce: z.string().max(512).optional(),
   code_challenge: z.string().optional(),
   code_challenge_method: z.string().optional(),
 })
@@ -85,6 +86,8 @@ export async function oauthRoutes(app: FastifyInstance) {
       codeChallenge: query.code_challenge,
       userId: session.userId,
       scope,
+      nonce: query.nonce,
+      authTime: Math.floor(session.createdAt / 1000),
     })
 
     return reply.redirect(buildRedirect(client.redirectUri, { code, state: query.state }))

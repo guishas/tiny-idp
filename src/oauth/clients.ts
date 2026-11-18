@@ -1,3 +1,5 @@
+export const SUPPORTED_SCOPES = ['profile', 'email', 'openid'] as const
+
 export interface OAuthClient {
   id: string
   // Compared by exact string equality, never by prefix or pattern.
@@ -9,7 +11,7 @@ export interface OAuthClient {
 const demoClient: OAuthClient = {
   id: 'demo-client',
   redirectUri: 'http://localhost:4000/callback',
-  scopes: ['profile', 'email', 'openid'],
+  scopes: SUPPORTED_SCOPES,
 }
 
 const clients = new Map([[demoClient.id, demoClient]])
