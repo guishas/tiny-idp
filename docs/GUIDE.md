@@ -184,7 +184,7 @@ JSON malformado em qualquer rota deve dar `400`, nunca `500`.
 - [x] `bun run test:m2` com 17 testes verdes (mais 3 bônus)
 - [x] Manual: o `code` expira em 60 s (espere um minuto no console antes de trocar)
 - [x] Manual: nenhum token nem `code` aparece em log
-- [ ] Você explica em voz alta, sem olhar, por que o PKCE impede o uso de um `code` roubado e para que serve o `state`
+- [x] Você explica em voz alta, sem olhar, por que o PKCE impede o uso de um `code` roubado e para que serve o `state`
 
 **Commit sugerido:** `feat: OAuth 2.0 authorization code flow with PKCE and refresh rotation`
 
