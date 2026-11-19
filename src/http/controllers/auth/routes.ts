@@ -73,9 +73,14 @@ export async function authRoutes(app: FastifyInstance) {
   })
 
   app.get('/me', async (request) => {
-    const { user } = requireUser(request)
+    const { user, session } = requireUser(request)
 
-    return toPublicUser(user)
+    // acr says HOW the user authenticated ('pwd' or 'mfa'); auth_time says WHEN, in Unix seconds.
+    return {
+      ...toPublicUser(user),
+      acr: session.acr,
+      auth_time: Math.floor(session.authTime / 1000),
+    }
   })
 
   // Idempotent on purpose: logging out without a valid session is not an error.

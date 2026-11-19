@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 
+import { audit, onBehalfOf } from '@/audit/audit'
 import { can } from '@/authz/can'
+import { hasFreshMfa, requiresStepUp, stepUpChallenge } from '@/authz/step-up'
 import { HttpError } from '@/http/http-error'
 import { authorize, getOrg } from '@/http/org-context'
 import { parseBody } from '@/http/validate'
@@ -23,11 +25,22 @@ export async function invoiceRoutes(app: FastifyInstance) {
   app.post('/orgs/:orgId/invoices', async (request, reply) => {
     const { user, org } = getOrg(request)
 
-    authorize(org, user.id, 'invoice:create')
+    const decision = authorize(request, org, user.id, 'invoice:create', {
+      action: 'invoice.created',
+      resource: `org:${org.id}`,
+    })
     const { amount } = parseBody(createInvoiceSchema, request.body)
 
     const invoice: Invoice = { id: randomUUID(), amount, ownerId: user.id, status: 'pending' }
     org.invoices.set(invoice.id, invoice)
+
+    audit(request, org, {
+      actor: user.id,
+      action: 'invoice.created',
+      resource: `invoice:${invoice.id}`,
+      outcome: 'success',
+      onBehalfOf: onBehalfOf(decision),
+    })
 
     return reply.code(201).send(toPublicInvoice(invoice))
   })
@@ -41,7 +54,7 @@ export async function invoiceRoutes(app: FastifyInstance) {
 
     if (can(org, user.id, 'invoice:read').allowed) return invoices.map(toPublicInvoice)
 
-    authorize(org, user.id, 'invoice:read:own')
+    authorize(request, org, user.id, 'invoice:read:own')
 
     return invoices.filter((invoice) => invoice.ownerId === user.id).map(toPublicInvoice)
   })
@@ -51,7 +64,7 @@ export async function invoiceRoutes(app: FastifyInstance) {
     const { id } = parseBody(invoiceParamsSchema, request.params)
 
     const readsAll = can(org, user.id, 'invoice:read').allowed
-    if (!readsAll) authorize(org, user.id, 'invoice:read:own')
+    if (!readsAll) authorize(request, org, user.id, 'invoice:read:own')
 
     // IDOR defense: the lookup is scoped to the org of the URL, so an id from another tenant is
     // simply not found. Someone else's invoice answers 404, the same as a missing one, so the
@@ -65,19 +78,33 @@ export async function invoiceRoutes(app: FastifyInstance) {
   })
 
   app.post('/orgs/:orgId/invoices/:id/approve', async (request) => {
-    const { user, org } = getOrg(request)
+    const { user, session, org } = getOrg(request)
     const { id } = parseBody(invoiceParamsSchema, request.params)
 
-    authorize(org, user.id, 'invoice:approve')
+    const target = { action: 'invoice.approve', resource: `invoice:${id}` } as const
+
+    // Order matters: permission, then existence, then step-up. The 401 teaches the client how to
+    // re-authenticate, so someone who could never approve must not get invited to do MFA.
+    const decision = authorize(request, org, user.id, 'invoice:approve', target)
 
     const invoice = org.invoices.get(id)
     if (!invoice) throw new HttpError(404, 'not_found')
+
+    const actor = { actor: user.id, onBehalfOf: onBehalfOf(decision), ...target }
+
+    // Checked before the idempotent shortcut below, so the rule never depends on invoice state.
+    if (requiresStepUp(invoice.amount) && !hasFreshMfa(session)) {
+      audit(request, org, { ...actor, outcome: 'step_up_required' })
+      throw stepUpChallenge()
+    }
 
     // Approving twice is harmless, and the first approver stays on record.
     if (invoice.status !== 'approved') {
       invoice.status = 'approved'
       invoice.approvedBy = user.id
     }
+
+    audit(request, org, { ...actor, outcome: 'success' })
 
     return { id: invoice.id, status: invoice.status }
   })

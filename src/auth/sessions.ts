@@ -16,10 +16,31 @@ export function createSession(userId: string): Session {
     userId,
     createdAt: now,
     expiresAt: now + SESSION_TTL_SECONDS * 1000,
+    acr: 'pwd',
+    authTime: now,
   }
 
   sessions.set(session.id, session)
   return session
+}
+
+// Step-up succeeded: the same login, now at a higher assurance level. The session id is rotated,
+// like on login, so an id captured while the session was weaker is worthless afterwards. The
+// absolute expiry is kept: proving a second factor does not buy a longer session.
+export function elevateSession(current: Session): Session {
+  const elevated: Session = {
+    id: randomToken(),
+    userId: current.userId,
+    createdAt: current.createdAt,
+    expiresAt: current.expiresAt,
+    acr: 'mfa',
+    authTime: Date.now(),
+  }
+
+  sessions.delete(current.id)
+  sessions.set(elevated.id, elevated)
+
+  return elevated
 }
 
 export function findSession(sessionId: string | undefined): Session | undefined {
@@ -50,7 +71,7 @@ export function setSessionCookie(reply: FastifyReply, session: Session) {
     sameSite: 'lax', // not sent on cross-site POSTs, which blocks most CSRF
     secure: env.NODE_ENV === 'production', // HTTPS only in production
     path: '/',
-    maxAge: SESSION_TTL_SECONDS,
+    maxAge: Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000)),
   })
 }
 

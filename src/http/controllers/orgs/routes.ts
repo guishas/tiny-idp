@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 
+import { audit, denied, onBehalfOf } from '@/audit/audit'
 import { holdsAll } from '@/authz/can'
 import { PERMISSIONS } from '@/authz/permissions'
 import { HttpError } from '@/http/http-error'
@@ -46,6 +47,7 @@ export async function orgRoutes(app: FastifyInstance) {
       members: new Map([[user.id, owner.id]]),
       invoices: new Map(),
       delegations: new Map(),
+      audit: [],
     }
     orgs.set(org.id, org)
 
@@ -62,11 +64,12 @@ export async function orgRoutes(app: FastifyInstance) {
     const { user, org } = getOrg(request)
 
     // Permission first, validation second: an unauthorized caller learns nothing about the rules.
-    authorize(org, user.id, 'role:manage')
+    const attempt = { action: 'role.created', resource: `org:${org.id}` } as const
+    const decision = authorize(request, org, user.id, 'role:manage', attempt)
     const { name, permissions } = parseBody(createRoleSchema, request.body)
 
     // Anti-escalation: nobody can create a role more powerful than their own.
-    if (!holdsAll(org, user.id, permissions)) throw new HttpError(403, 'forbidden')
+    if (!holdsAll(org, user.id, permissions)) throw denied(request, org, user.id, attempt)
 
     const taken = [...org.roles.values()].some((r) => r.name.toLowerCase() === name.toLowerCase())
     if (taken) throw new HttpError(409, 'role_name_taken')
@@ -74,17 +77,26 @@ export async function orgRoutes(app: FastifyInstance) {
     const role: Role = { id: randomUUID(), name, permissions: [...new Set(permissions)] }
     org.roles.set(role.id, role)
 
+    audit(request, org, {
+      actor: user.id,
+      action: 'role.created',
+      resource: `role:${role.id}`,
+      outcome: 'success',
+      onBehalfOf: onBehalfOf(decision),
+    })
+
     return reply.code(201).send(role)
   })
 
   app.post('/orgs/:orgId/members', async (request, reply) => {
     const { user, org } = getOrg(request)
 
-    authorize(org, user.id, 'member:manage')
+    const attempt = { action: 'member.added', resource: `org:${org.id}` } as const
+    const decision = authorize(request, org, user.id, 'member:manage', attempt)
     const { email, roleId } = parseBody(addMemberSchema, request.body)
 
     const role = findRole(org, roleId)
-    if (!holdsAll(org, user.id, role.permissions)) throw new HttpError(403, 'forbidden')
+    if (!holdsAll(org, user.id, role.permissions)) throw denied(request, org, user.id, attempt)
 
     const member = usersByEmail.get(email)
     if (!member) throw new HttpError(404, 'user_not_found')
@@ -92,13 +104,22 @@ export async function orgRoutes(app: FastifyInstance) {
 
     org.members.set(member.id, role.id)
 
+    audit(request, org, {
+      actor: user.id,
+      subject: member.id,
+      action: 'member.added',
+      resource: `org:${org.id}`,
+      outcome: 'success',
+      onBehalfOf: onBehalfOf(decision),
+    })
+
     return reply.code(201).send({ userId: member.id, email: member.email, roleId: role.id })
   })
 
   app.put('/orgs/:orgId/members/:userId', async (request) => {
     const { user, org } = getOrg(request)
 
-    authorize(org, user.id, 'member:manage')
+    authorize(request, org, user.id, 'member:manage')
     const { userId } = parseBody(memberParamsSchema, request.params)
     const { roleId } = parseBody(changeMemberSchema, request.body)
 

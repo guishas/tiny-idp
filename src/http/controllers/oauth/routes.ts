@@ -87,7 +87,7 @@ export async function oauthRoutes(app: FastifyInstance) {
       userId: session.userId,
       scope,
       nonce: query.nonce,
-      authTime: Math.floor(session.createdAt / 1000),
+      authTime: Math.floor(session.authTime / 1000),
     })
 
     return reply.redirect(buildRedirect(client.redirectUri, { code, state: query.state }))

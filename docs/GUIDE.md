@@ -323,16 +323,16 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 **Passo a passo**
 
-- [ ] `src/lib/totp.ts`: segredo de 20 bytes aleatórios, codificado em base32. O código é um HMAC-SHA1 do contador `Math.floor(Date.now() / 30000)` (8 bytes, big-endian) com *dynamic truncation* para 6 dígitos
-- [ ] `otpauth_uri`: `otpauth://totp/tiny-idp:EMAIL?secret=...&issuer=tiny-idp`
-- [ ] Verificação com janela de ±1 passo e comparação em tempo constante (`timingSafeEqual`)
-- [ ] A sessão ganha `acr` e `authTime`: o login por senha define `acr: 'pwd'`; o `/stepup` muda para `'mfa'` e atualiza o `authTime`
-- [ ] Aprovação: a ordem de checagens acima e o header do RFC 9470 exatamente como no contrato
-- [ ] `audit(org, evento)`: uma função única que faz `push` em `org.audit`, chamada pelas rotas, inclusive nas tentativas **negadas**
-- [ ] `on_behalf_of` vem do retorno do `can()` (por isso ele devolve por onde permitiu)
-- [ ] `request_id`: um hook `onRequest` que lê ou gera o id e o devolve no header da resposta
-- [ ] Nunca registre senha, token, segredo TOTP nem id de sessão no audit (o teste procura o id de sessão)
-- [ ] Bônus anti-replay: guarde o último contador aceito e recuse um código de contador igual ou anterior
+- [x] `src/lib/totp.ts`: segredo de 20 bytes aleatórios, codificado em base32. O código é um HMAC-SHA1 do contador `Math.floor(Date.now() / 30000)` (8 bytes, big-endian) com *dynamic truncation* para 6 dígitos
+- [x] `otpauth_uri`: `otpauth://totp/tiny-idp:EMAIL?secret=...&issuer=tiny-idp`
+- [x] Verificação com janela de ±1 passo e comparação em tempo constante (`timingSafeEqual`)
+- [x] A sessão ganha `acr` e `authTime`: o login por senha define `acr: 'pwd'`; o `/stepup` muda para `'mfa'` e atualiza o `authTime`
+- [x] Aprovação: a ordem de checagens acima e o header do RFC 9470 exatamente como no contrato
+- [x] `audit(org, evento)`: uma função única que faz `push` em `org.audit`, chamada pelas rotas, inclusive nas tentativas **negadas**
+- [x] `on_behalf_of` vem do retorno do `can()` (por isso ele devolve por onde permitiu)
+- [x] `request_id`: um hook `onRequest` que lê ou gera o id e o devolve no header da resposta
+- [x] Nunca registre senha, token, segredo TOTP nem id de sessão no audit (o teste procura o id de sessão)
+- [x] Bônus anti-replay: guarde o último contador aceito e recuse um código de contador igual ou anterior
 
 **No console (aba 5 · MFA & audit):** "Enroll" e depois "Confirm with the current code". O console faz o papel do aplicativo autenticador e mostra o código atual; adicione o mesmo segredo a um aplicativo de verdade uma vez e confira que os dois mostram o mesmo número. Na aba 4, crie uma fatura de `150000` e clique em "Approve": aparece o aviso de step-up com os parâmetros do desafio. Faça o step-up, aprove de novo e depois carregue o audit: precisam aparecer `step_up_required` e, em seguida, `success`.
 
@@ -342,9 +342,9 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 **Critérios de aceite**
 
-- [ ] `bun run test:m5` com 12 testes verdes (mais 2 bônus)
-- [ ] Manual: um aplicativo autenticador real mostra o mesmo código que o console
-- [ ] Manual: no audit, uma aprovação feita por delegação traz o `on_behalf_of`
+- [x] `bun run test:m5` com 12 testes verdes (mais 2 bônus)
+- [x] Manual: um aplicativo autenticador real mostra o mesmo código que o console
+- [x] Manual: no audit, uma aprovação feita por delegação traz o `on_behalf_of`
 - [ ] Você explica por que "MFA no login" não basta para ações de alto risco e o que o `max_age` controla
 
 **Commit sugerido:** `feat: TOTP MFA, RFC 9470 step-up challenge and append-only audit log`

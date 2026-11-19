@@ -5,6 +5,8 @@ export class HttpError extends Error {
     readonly statusCode: number,
     readonly code: string,
     readonly headers: Record<string, string> = {},
+    // Extra fixed fields for the JSON body, next to `error` (used by the RFC 9470 challenge).
+    readonly details: Record<string, unknown> = {},
   ) {
     super(code)
     this.name = 'HttpError'

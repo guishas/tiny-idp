@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 
+import { audit, denied } from '@/audit/audit'
 import { can, holdsAll } from '@/authz/can'
 import { PERMISSIONS } from '@/authz/permissions'
 import { HttpError } from '@/http/http-error'
@@ -32,7 +33,12 @@ export async function delegationRoutes(app: FastifyInstance) {
       request.body,
     )
 
-    if (!holdsAll(org, user.id, permissions)) throw new HttpError(403, 'forbidden')
+    if (!holdsAll(org, user.id, permissions)) {
+      throw denied(request, org, user.id, {
+        action: 'delegation.created',
+        resource: `org:${org.id}`,
+      })
+    }
 
     // A missing user and a user outside this org look the same: neither is a valid recipient.
     const grantee = usersByEmail.get(toEmail)
@@ -50,6 +56,14 @@ export async function delegationRoutes(app: FastifyInstance) {
     }
     org.delegations.set(delegation.id, delegation)
 
+    audit(request, org, {
+      actor: user.id,
+      subject: grantee.id,
+      action: 'delegation.created',
+      resource: `delegation:${delegation.id}`,
+      outcome: 'success',
+    })
+
     return reply
       .code(201)
       .send({ id: delegation.id, expiresAt: new Date(delegation.expiresAt).toISOString() })
@@ -65,9 +79,18 @@ export async function delegationRoutes(app: FastifyInstance) {
     // Whoever granted it can always take it back; so can anyone allowed to manage delegations.
     const mayRevoke =
       delegation.grantorId === user.id || can(org, user.id, 'delegation:manage').allowed
-    if (!mayRevoke) throw new HttpError(403, 'forbidden')
+    const target = {
+      action: 'delegation.revoked',
+      resource: `delegation:${delegation.id}`,
+      subject: delegation.granteeId,
+    } as const
+    if (!mayRevoke) throw denied(request, org, user.id, target)
 
-    delegation.revokedAt ??= Date.now()
+    // Only the first revocation is an event worth recording; repeating it changes nothing.
+    if (delegation.revokedAt === undefined) {
+      delegation.revokedAt = Date.now()
+      audit(request, org, { ...target, actor: user.id, outcome: 'success' })
+    }
 
     return reply.code(204).send()
   })
