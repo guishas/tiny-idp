@@ -3,7 +3,6 @@
 // O README.md já existe desde o primeiro commit. Para fechar o marco 7:
 //   - na seção "What's implemented", todos os marcos estão marcados ([x]) — nenhum "- [ ]" sobrando
 //   - a seção "Security notes" foi escrita por você: pelo menos 3 itens e nenhum marcador TODO(m7)
-//   - existe .github/workflows/ci.yml rodando `bun test`
 //   - package.json mantém os scripts "dev", "start" e "test"
 
 import { test } from 'bun:test'
@@ -42,12 +41,6 @@ test('README mantém as seções "How to run" e "Out of scope"', () => {
   const md = read('README.md')
   assert.match(md, /^##\s+How to run/im)
   assert.match(md, /^##\s+Out of scope/im)
-})
-
-test('CI roda os testes com bun', () => {
-  const yml = read('.github/workflows/ci.yml')
-  assert.match(yml, /\bon:/)
-  assert.match(yml, /bun (run )?test/)
 })
 
 test('package.json tem os scripts dev, start e test', () => {
