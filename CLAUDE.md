@@ -40,22 +40,28 @@ Config is via env (`.env.example`): `PORT` (default 3000), `ISSUER` (defaults to
 
 ```
 src/        the identity provider (the exercise)
-  app.ts      Fastify instance and route registration (today: only GET /health)
+  app.ts      Fastify instance, request id, error handlers and route registration
   server.ts   entry point, listens on env.PORT
   env.ts      env vars validated with Zod
+  store.ts    the in-memory Maps and their types
+  auth/       passwords (argon2id), sessions, TOTP attempt limit
+  oauth/      clients, PKCE, authorization codes, token families, grants
+  oidc/       signing key, JWT signing, ID token
+  authz/      permission catalog, can(), step-up policy
+  audit/      the single audit() writer
+  lib/        random tokens, base32, TOTP
+  http/       HttpError, error handler, validation, request id, org context and controllers/
+              {api,auth,mfa,oauth,oidc,orgs}
 test/       acceptance tests = the specification of each milestone
   m1-auth ... m5-mfa-audit .spec.ts   black-box HTTP tests; the API contract is in the header
-  m6-docs / m7-repo .spec.ts          structural checks (ARCHITECTURE.md, README, CI)
+  m6-docs / m7-repo .spec.ts          structural checks (ARCHITECTURE.md, README, scripts)
   helpers.ts  cookie-jar Session, PKCE, JWT verify, TOTP   (do not edit)
   setup.ts    starts src/server.ts if nothing listens on BASE_URL (do not edit)
 console/    dev console (server.ts + index.html); NOT part of the IdP
 docs/GUIDE.md   step-by-step guide per milestone, in Portuguese
+ARCHITECTURE.md diagrams, components, threat model, decisions and trade-offs
 README.md       public description + milestone checklist (source of truth for progress)
 ```
-
-Optional `src/` structure suggested by the guide (not mandatory): `store.ts` (the Maps and types),
-`http/error-handler.ts`, `http/controllers/{auth,oauth,oidc,orgs,mfa}/routes.ts`, `authz/can.ts`,
-`lib/` (crypto, totp, jwt).
 
 ## How it works
 
@@ -77,7 +83,7 @@ that cannot be tested from outside (e.g. password stored as argon2id, `Secure` c
 | 4 | Orgs, custom roles, members, invoices, delegation; one deny-by-default `can()` | `m4-authz` |
 | 5 | TOTP enroll/confirm, `POST /stepup`, RFC 9470 challenge, audit log | `m5-mfa-audit` |
 | 6 | `ARCHITECTURE.md`: diagram, components, threat model, decisions | `m6-docs` |
-| 7 | Final README, CI | `m7-repo` |
+| 7 | Final README (no CI, by choice) | `m7-repo` |
 
 Permission catalog (M4): `invoice:create`, `invoice:read`, `invoice:read:own`, `invoice:approve`,
 `role:manage`, `member:manage`, `delegation:manage`, `audit:read`.

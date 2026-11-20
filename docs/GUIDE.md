@@ -372,9 +372,9 @@ O `bun run test:m6` (4 testes) só confere a **estrutura**. A qualidade é com v
 
 ### Marco 7: README, CI e scripts
 
-- [ ] No `README.md`, marque os sete marcos em "What's implemented" (`- [x]`)
-- [ ] Escreva a seção "Security notes" (ela está com um `TODO(m7)`): pelo menos 3 pontos sobre o que **não** está resolvido, como estado em memória, ausência de rate limit e chave de assinatura sem rotação. Honestidade aqui pesa a seu favor
-- [ ] Releia o README inteiro e ajuste o que não corresponder ao que você construiu. Fui eu que escrevi a primeira versão; no fim, ele precisa ser seu
+- [x] No `README.md`, marque os sete marcos em "What's implemented" (`- [x]`)
+- [x] Escreva a seção "Security notes" (ela está com um `TODO(m7)`): pelo menos 3 pontos sobre o que **não** está resolvido, como estado em memória, ausência de rate limit e chave de assinatura sem rotação. Honestidade aqui pesa a seu favor
+- [x] Releia o README inteiro e ajuste o que não corresponder ao que você construiu. Fui eu que escrevi a primeira versão; no fim, ele precisa ser seu
 - [ ] Crie `.github/workflows/ci.yml`:
 
 ```yaml
@@ -400,10 +400,10 @@ O `bun test` sobe o servidor sozinho, então o CI não precisa de um passo para 
 
 **Critérios de aceite**
 
-- [ ] `bun run test:m6` (4 testes) e `bun run test:m7` (5 testes) verdes
+- [x] `bun run test:m6` (4 testes) e `bun run test:m7` (5 testes) verdes
 - [ ] `bun test` completo verde, localmente e no GitHub Actions
-- [ ] Alguém que nunca viu o projeto consegue rodá-lo seguindo só o README
-- [ ] O repositório não contém segredos, `.env` nem `node_modules`
+- [x] Alguém que nunca viu o projeto consegue rodá-lo seguindo só o README
+- [x] O repositório não contém segredos, `.env` nem `node_modules`
 
 **Commits sugeridos:** `docs: architecture, threat model and decisions` e `chore: final README and CI`
 

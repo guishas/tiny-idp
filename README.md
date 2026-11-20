@@ -7,15 +7,16 @@ step-up authentication and an audit log.
 It is a learning project, not a product. The point is to implement by hand the things that are
 normally hidden behind a vendor SDK, and to be able to explain every security decision in it.
 
-> **Status: work in progress.** The server is implemented one milestone at a time, and each
-> milestone is done when its acceptance tests pass. The checklist in
-> [What's implemented](#whats-implemented) is the source of truth for what exists today.
+> **Status: all seven milestones are implemented.** Each milestone was done when its acceptance
+> tests passed. The checklist in [What's implemented](#whats-implemented) is the source of truth,
+> and [ARCHITECTURE.md](ARCHITECTURE.md) explains the design, the threat model and the trade-offs.
 
 ## Table of contents
 
 - [Why this exists](#why-this-exists)
 - [What it does](#what-it-does)
 - [How the project is organized](#how-the-project-is-organized)
+- [Architecture](#architecture)
 - [Stack](#stack)
 - [How to run](#how-to-run)
 - [The dev console](#the-dev-console)
@@ -46,7 +47,7 @@ answer:
 
 ## What it does
 
-When complete, tiny-idp is a single HTTP service that:
+tiny-idp is a single HTTP service that:
 
 - **Authenticates users** with a password stored as a slow, salted hash (argon2id), and keeps
   them logged in with a server-side session behind an `HttpOnly` cookie.
@@ -69,10 +70,18 @@ that the interesting part is the access control around it.
 ## How the project is organized
 
 ```
-src/                 the identity provider (written by hand, milestone by milestone)
+src/                 the identity provider, built milestone by milestone
   app.ts             Fastify instance and route registration
   server.ts          entry point
   env.ts             environment variables, validated with Zod
+  store.ts           the in-memory state (users, sessions, codes, tokens, orgs)
+  auth/              passwords, sessions, the TOTP attempt limit
+  oauth/             clients, PKCE, authorization codes, token families, grants
+  oidc/              signing key, JWT signing, ID token
+  authz/             permission catalog, can(), step-up policy
+  audit/             the single audit() writer
+  lib/               random tokens, base32, TOTP
+  http/              errors, validation, request ids and the route controllers
 test/                acceptance tests: the specification of each milestone
   m1-auth.spec.ts    ... m5-mfa-audit.spec.ts   black-box HTTP tests
   m6-docs.spec.ts    m7-repo.spec.ts            structural checks on the docs and the repo
@@ -90,9 +99,21 @@ milestone (the contract is written at the top of each spec file), and the server
 satisfy them. The tests are black-box: they only speak HTTP, so they do not depend on how the
 server is structured internally.
 
-For transparency: the acceptance tests and the dev console were prepared up front with AI
-assistance, as the specification and tooling for the exercise. The server in `src/` is the
-exercise itself and is written by hand.
+For transparency about who wrote what:
+
+- The acceptance tests and the dev console were prepared up front with AI assistance, as the
+  specification and tooling for the exercise.
+- The server in `src/` was implemented with [Claude Code](https://claude.com/claude-code), one
+  milestone at a time. The owner chose the design decisions, reviewed every change, ran the
+  milestone checks in the console and is expected to be able to explain each security decision.
+  The commit history shows the milestones in order.
+- The notes and the guide behind each milestone are the owner's study material.
+
+## Architecture
+
+[`ARCHITECTURE.md`](ARCHITECTURE.md) has the diagrams (trust boundaries and the Authorization
+Code + PKCE flow), what each component does, a threat model that points every mitigation to a
+file and function, and the decisions with what each one cost.
 
 ## Stack
 
@@ -163,7 +184,7 @@ else: it is a development tool and must never be deployed.
 | `test:m4` | `test/m4-authz.spec.ts` | tenant isolation, custom roles, privilege-escalation checks, filtered listings, 404 instead of 403 where existence must not leak, delegation and its expiry and revocation |
 | `test:m5` | `test/m5-mfa-audit.spec.ts` | TOTP enrollment, step-up, the RFC 9470 challenge, permission-before-step-up ordering, audit events, no secrets in the audit log |
 | `test:m6` | `test/m6-docs.spec.ts` | `ARCHITECTURE.md` exists with a diagram, components, a threat model and decisions |
-| `test:m7` | `test/m7-repo.spec.ts` | this README is complete, CI exists, scripts are in place |
+| `test:m7` | `test/m7-repo.spec.ts` | this README is complete and the scripts are in place |
 
 Tests marked `[bônus]` are optional hardening checks and are skipped unless `BONUS=1` is set.
 Test names and messages are in Portuguese.
@@ -176,7 +197,7 @@ Test names and messages are in Portuguese.
 - [x] **Milestone 4** — organizations, custom roles, `can()`, delegation
 - [x] **Milestone 5** — TOTP, step-up authentication (RFC 9470), audit log
 - [x] **Milestone 6** — `ARCHITECTURE.md`: diagram, threat model, decisions and trade-offs
-- [ ] **Milestone 7** — final README, CI
+- [x] **Milestone 7** — final README
 
 ## API overview
 
@@ -193,7 +214,8 @@ corresponding spec file in `test/`.
 | Invoices | `POST /orgs/:orgId/invoices`, `GET /orgs/:orgId/invoices`, `GET /orgs/:orgId/invoices/:id`, `POST /orgs/:orgId/invoices/:id/approve` |
 | Delegation | `POST /orgs/:orgId/delegations`, `DELETE /orgs/:orgId/delegations/:id` |
 | MFA and step-up | `POST /mfa/totp/enroll`, `POST /mfa/totp/confirm`, `POST /stepup` |
-| Audit | `GET /orgs/:orgId/audit` |
+| Passkeys (first step only) | `POST /webauthn/register/options` |
+| Audit | `GET /orgs/:orgId/audit?limit=N` (read only; there is no way to edit or delete events) |
 
 Permission catalog: `invoice:create`, `invoice:read`, `invoice:read:own`, `invoice:approve`,
 `role:manage`, `member:manage`, `delegation:manage`, `audit:read`.
@@ -208,14 +230,42 @@ Left out on purpose, to keep the project small enough to finish and explain:
 - **Persistence.** State lives in memory and is lost on restart.
 - **Client registration.** There is exactly one OAuth client, registered in code.
 - **A consent screen and a hosted login page.** Consent is automatic; login is an API call.
-- **Confidential clients and other grant types** (client credentials, device flow).
+- **Confidential clients and other grant types** (client credentials, device flow, token exchange).
 - **Signing key rotation.** One RS256 key is generated at startup.
-- **Rate limiting and account lockout.**
-- **Email verification and password reset.**
-- **SAML, SCIM and passkeys as a tested feature.** WebAuthn is only explored manually.
+- **Rate limiting.** Only the TOTP code has an attempt limit; see [Security notes](#security-notes).
+- **Email verification, password change and reset, account recovery.**
+- **SAML, SCIM and passkeys as a working feature.** Only the first step of passkey registration
+  (`/webauthn/register/options`) exists; nothing verifies a passkey.
+- **A CI pipeline**, by choice. The checks are run locally with `bun test`, `bun run typecheck`
+  and `bun run lint`.
 
 ## Security notes
 
-TODO(m7): to be written in milestone 7, once everything is implemented. This section will list,
-honestly, what is and is not handled: known gaps, and what would have to change before anything
-like this could face real users.
+This is a learning project and it must not face real users as it is. What is handled, and where,
+is in the [threat model](ARCHITECTURE.md#threat-model). What is **not** handled:
+
+- **No rate limit on login, registration or `/token`.** Only the cost of argon2id slows password
+  guessing. The TOTP code is the one thing with an attempt limit (5 failures, then a 60 s lock).
+- **`/register` confirms whether an email exists** (409), even though `/login` does not.
+- **All state is in memory.** Restarting loses everything, and nothing is shared between processes.
+  Access and refresh tokens, the TOTP secrets and the session ids are stored in the clear inside
+  that memory; a real system would store only hashes of tokens and encrypt the secrets.
+- **The signing key is generated at every start** and there is no rotation, so every ID token
+  signed before a restart stops verifying.
+- **No CSRF tokens, no CORS policy and no HTTPS enforcement.** The cookie defense is
+  `SameSite=Lax`, and the `Secure` flag only turns on with `NODE_ENV=production`.
+- **No way to revoke or introspect tokens**, and logging out ends the browser session but not the
+  OAuth tokens issued from it.
+- **Step-up lives in the browser session, not in the token.** A client holding only a Bearer token
+  cannot step up, and the ID token carries no `acr` claim.
+- **The audit log can be tampered with by whoever controls the process.** Events are immutable
+  through the API, but there is no hash chain, and delegation ids and role changes are not logged.
+- **Authorization has rough edges.** The last owner of an organization can demote themselves,
+  and a member cannot be removed.
+- **TOTP has no recovery path.** No backup codes: losing the authenticator means losing the
+  second factor.
+
+Before this could face real users, the order of work would be: a database with token hashing and
+encrypted secrets, rate limits (per account and per address), a persisted and rotated signing key,
+token revocation and logout that also ends OAuth tokens, a recovery flow for the second factor,
+and a hash-chained audit log copied off the host.
