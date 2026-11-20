@@ -175,7 +175,7 @@ Test names and messages are in Portuguese.
 - [x] **Milestone 3** — OpenID Connect: discovery, JWKS, ID token, userinfo
 - [x] **Milestone 4** — organizations, custom roles, `can()`, delegation
 - [x] **Milestone 5** — TOTP, step-up authentication (RFC 9470), audit log
-- [ ] **Milestone 6** — `ARCHITECTURE.md`: diagram, threat model, decisions and trade-offs
+- [x] **Milestone 6** — `ARCHITECTURE.md`: diagram, threat model, decisions and trade-offs
 - [ ] **Milestone 7** — final README, CI
 
 ## API overview

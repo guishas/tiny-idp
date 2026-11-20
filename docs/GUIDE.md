@@ -361,10 +361,10 @@ Sem o escopo `openid`, **não** pode haver `id_token`.
 
 Crie `ARCHITECTURE.md` na raiz, em inglês, com:
 
-- [ ] Um diagrama em um bloco de código `mermaid` (o GitHub renderiza). Sugestão: um `sequenceDiagram` do fluxo Authorization Code + PKCE entre navegador, console e o seu servidor
-- [ ] `## Components`: uma ou duas linhas por componente (sessões, OAuth, OIDC, autorização, MFA e step-up, audit)
-- [ ] `## Threat model`: uma tabela com **pelo menos 6 ameaças** em 3 colunas: ameaça, mitigação, onde está no código (arquivo e função)
-- [ ] `## Decisions and trade-offs`: pelo menos 3 itens, cada um com o que você escolheu e o que perdeu com a escolha (ex.: tokens opacos em vez de JWT, estado em memória, `404` em vez de `403`)
+- [x] Um diagrama em um bloco de código `mermaid` (o GitHub renderiza). Sugestão: um `sequenceDiagram` do fluxo Authorization Code + PKCE entre navegador, console e o seu servidor
+- [x] `## Components`: uma ou duas linhas por componente (sessões, OAuth, OIDC, autorização, MFA e step-up, audit)
+- [x] `## Threat model`: uma tabela com **pelo menos 6 ameaças** em 3 colunas: ameaça, mitigação, onde está no código (arquivo e função)
+- [x] `## Decisions and trade-offs`: pelo menos 3 itens, cada um com o que você escolheu e o que perdeu com a escolha (ex.: tokens opacos em vez de JWT, estado em memória, `404` em vez de `403`)
 
 Ameaças que você já enfrentou e sabe defender: roubo de `code`, `redirect_uri` aberto, CSRF no callback, replay de refresh token, enumeração de usuários no login, *session fixation*, escalonamento de privilégio por criação de papel, acesso entre organizações, `id_token` usado como access token, replay de código TOTP e ação sensível sem autenticação recente.
 
